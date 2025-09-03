@@ -1,5 +1,5 @@
 // =============================
-// AI Diary App - Hugging Face Version (with timeout + error handling)
+// AI Diary App - Hugging Face Version (Final)
 // =============================
 
 let entries = JSON.parse(localStorage.getItem("entries") || "[]");
@@ -55,7 +55,7 @@ document.getElementById("saveEntry").onclick = () => {
 function loadEntries() {
   let list = document.getElementById("entriesList");
   list.innerHTML = "";
-  entries.forEach((e, i) => {
+  entries.forEach((e) => {
     let li = document.createElement("li");
     li.className = "card";
     li.innerHTML = `<b>${e.title}</b><br>${e.text}<br><span class="ts">${e.date}</span>`;
@@ -85,7 +85,7 @@ document.getElementById("search").oninput = (e) => {
 };
 
 // =============================
-// Hugging Face Chat with Timeout
+// Hugging Face Chat (Text Generation Pipeline)
 // =============================
 async function sendToAI(message) {
   if (!settings.apiKey || !settings.model) {
@@ -93,17 +93,20 @@ async function sendToAI(message) {
   }
 
   try {
-    // Timeout setup (20s)
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
 
-    let response = await fetch(`https://api-inference.huggingface.co/models/${settings.model}`, {
+    let response = await fetch("https://api-inference.huggingface.co/pipeline/text-generation", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${settings.apiKey}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ inputs: message }),
+      body: JSON.stringify({
+        model: settings.model,
+        inputs: message,
+        parameters: { max_new_tokens: 100 }
+      }),
       signal: controller.signal
     });
 
@@ -116,18 +119,14 @@ async function sendToAI(message) {
     let data = await response.json();
     console.log("HF response:", data);
 
-    // Handle different response formats
     if (Array.isArray(data) && data[0]?.generated_text) {
       return data[0].generated_text;
-    }
-    if (data.generated_text) {
-      return data.generated_text;
     }
 
     return "🤖 No reply received from model.";
   } catch (err) {
     if (err.name === "AbortError") {
-      return "⏳ Request timed out. Try a smaller or faster model (like HuggingFaceH4/zephyr-7b-beta).";
+      return "⏳ Request timed out. Try a smaller or faster model (like distilgpt2).";
     }
     return "❌ Error: " + err.message;
   }
@@ -157,6 +156,7 @@ document.getElementById("sendMsg").onclick = async () => {
 
   chatLog.scrollTop = chatLog.scrollHeight;
 };
+
 
 
 
