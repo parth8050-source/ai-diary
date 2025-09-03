@@ -64,7 +64,7 @@ document.getElementById('search').oninput=(e)=>{
   ));
 };
 
-// AI Chat
+// AI Chat (Hugging Face)
 const chatLog=document.getElementById('chatLog');
 const chatMsg=document.getElementById('chatMsg');
 document.getElementById('sendMsg').onclick=sendChat;
@@ -82,23 +82,25 @@ async function sendChat(){
   if(!msg) return;
   appendMsg('user',msg);
   chatMsg.value='';
-  const key=localStorage.getItem('apiKey');
-  const model=localStorage.getItem('model')||'gpt-4o-mini';
-  if(!key){ appendMsg('assistant','⚠️ Please set your API key in Settings'); return; }
+
+  const key=localStorage.getItem('hf_apiKey');
+  const model=localStorage.getItem('hf_model')||'meta-llama/Llama-2-7b-chat-hf';
+  if(!key){ appendMsg('assistant','⚠️ Please set your Hugging Face API key in Settings'); return; }
 
   appendMsg('assistant','⏳ Thinking...');
   try{
-    const r=await fetch("https://api.openai.com/v1/chat/completions",{
+    const r=await fetch(`https://api-inference.huggingface.co/models/${model}`,{
       method:"POST",
       headers:{ "Content-Type":"application/json","Authorization":"Bearer "+key },
-      body:JSON.stringify({model, messages:[{role:"user",content:msg}]})
+      body:JSON.stringify({inputs: msg})
     });
     const j=await r.json();
 
     if (j.error) {
-      chatLog.lastChild.innerHTML = `<div>⚠️ API Error: ${j.error.message}</div>`;
+      chatLog.lastChild.innerHTML = `<div>⚠️ API Error: ${j.error}</div>`;
     } else {
-      chatLog.lastChild.innerHTML = `<div>${j.choices[0].message.content}</div>`;
+      const reply = j[0]?.generated_text || "(no reply)";
+      chatLog.lastChild.innerHTML = `<div>${reply}</div>`;
     }
   }catch(e){
     chatLog.lastChild.innerHTML=`<div>⚠️ Error: ${e}</div>`;
@@ -109,8 +111,8 @@ async function sendChat(){
 document.getElementById('saveSettings').onclick=()=>{
   const key=document.getElementById('apiKey').value;
   const model=document.getElementById('model').value;
-  if(key) localStorage.setItem('apiKey',key);
-  localStorage.setItem('model',model);
+  if(key) localStorage.setItem('hf_apiKey',key);
+  localStorage.setItem('hf_model',model);
   alert('✅ Settings saved');
 };
 
@@ -139,4 +141,5 @@ document.getElementById('importData').onclick=()=>{
   };
   reader.readAsText(f);
 };
+
 
