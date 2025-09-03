@@ -1,161 +1,28 @@
-// =============================
-// AI Diary App - Hugging Face Version (Final)
-// =============================
+async function sendMessage() {
+    const input = document.getElementById("userInput").value;
+    const chatBox = document.getElementById("chatBox");
 
-let entries = JSON.parse(localStorage.getItem("entries") || "[]");
-let settings = JSON.parse(localStorage.getItem("settings") || "{}");
+    // Show user message
+    chatBox.innerHTML += `<div><b>You:</b> ${input}</div>`;
 
-// Save settings
-document.getElementById("saveSettings").onclick = () => {
-  settings.apiKey = document.getElementById("apiKey").value;
-  settings.model = document.getElementById("model").value;
-  localStorage.setItem("settings", JSON.stringify(settings));
-  alert("✅ Settings saved!");
-};
-
-// Load settings into inputs
-if (settings.apiKey) document.getElementById("apiKey").value = settings.apiKey;
-if (settings.model) document.getElementById("model").value = settings.model;
-
-// Tab navigation
-document.querySelectorAll(".tab-btn").forEach(btn => {
-  btn.onclick = () => {
-    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById(btn.dataset.tab).classList.add("active");
-  };
-});
-
-// Save diary entry
-document.getElementById("saveEntry").onclick = () => {
-  let title = document.getElementById("entryTitle").value;
-  let text = document.getElementById("entryText").value;
-  let photoFile = document.getElementById("entryPhoto").files[0];
-  let date = new Date().toLocaleString();
-  let entry = { title, text, date, photo: null };
-
-  if (photoFile) {
-    let reader = new FileReader();
-    reader.onload = () => {
-      entry.photo = reader.result;
-      entries.push(entry);
-      localStorage.setItem("entries", JSON.stringify(entries));
-      alert("✅ Entry saved!");
-    };
-    reader.readAsDataURL(photoFile);
-  } else {
-    entries.push(entry);
-    localStorage.setItem("entries", JSON.stringify(entries));
-    alert("✅ Entry saved!");
-  }
-};
-
-// Load entries
-function loadEntries() {
-  let list = document.getElementById("entriesList");
-  list.innerHTML = "";
-  entries.forEach((e) => {
-    let li = document.createElement("li");
-    li.className = "card";
-    li.innerHTML = `<b>${e.title}</b><br>${e.text}<br><span class="ts">${e.date}</span>`;
-    if (e.photo) {
-      li.innerHTML += `<br><img src="${e.photo}" class="thumb">`;
-    }
-    list.appendChild(li);
-  });
-}
-loadEntries();
-
-// Search entries
-document.getElementById("search").oninput = (e) => {
-  let q = e.target.value.toLowerCase();
-  let list = document.getElementById("entriesList");
-  list.innerHTML = "";
-  entries.filter(e => e.title.toLowerCase().includes(q) || e.text.toLowerCase().includes(q))
-    .forEach(e => {
-      let li = document.createElement("li");
-      li.className = "card";
-      li.innerHTML = `<b>${e.title}</b><br>${e.text}<br><span class="ts">${e.date}</span>`;
-      if (e.photo) {
-        li.innerHTML += `<br><img src="${e.photo}" class="thumb">`;
-      }
-      list.appendChild(li);
-    });
-};
-
-// =============================
-// Hugging Face Chat (Text Generation Pipeline)
-// =============================
-async function sendToAI(message) {
-  if (!settings.apiKey || !settings.model) {
-    return "⚠️ Please set API key and model in Settings.";
-  }
-
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
-
-    let response = await fetch("https://api-inference.huggingface.co/pipeline/text-generation", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${settings.apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: settings.model,
-        inputs: message,
-        parameters: { max_new_tokens: 100 }
-      }),
-      signal: controller.signal
+    // Call Hugging Face Space API
+    const response = await fetch("https://atharva-8050-my-diary-ai.hf.space/run/predict", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            data: [input]
+        })
     });
 
-    clearTimeout(timeout);
+    const result = await response.json();
+    const botReply = result.data[0];
 
-    if (!response.ok) {
-      return `❌ API Error: ${response.status} ${response.statusText}`;
-    }
-
-    let data = await response.json();
-    console.log("HF response:", data);
-
-    if (Array.isArray(data) && data[0]?.generated_text) {
-      return data[0].generated_text;
-    }
-
-    return "🤖 No reply received from model.";
-  } catch (err) {
-    if (err.name === "AbortError") {
-      return "⏳ Request timed out. Try a smaller or faster model (like distilgpt2).";
-    }
-    return "❌ Error: " + err.message;
-  }
+    // Show bot reply
+    chatBox.innerHTML += `<div><b>Diary AI:</b> ${botReply}</div>`;
+    document.getElementById("userInput").value = "";
 }
-
-// Handle chat
-document.getElementById("sendMsg").onclick = async () => {
-  let msg = document.getElementById("chatMsg").value;
-  if (!msg) return;
-
-  let chatLog = document.getElementById("chatLog");
-
-  let userDiv = document.createElement("div");
-  userDiv.className = "msg user";
-  userDiv.textContent = msg;
-  chatLog.appendChild(userDiv);
-
-  document.getElementById("chatMsg").value = "";
-
-  let thinkingDiv = document.createElement("div");
-  thinkingDiv.className = "msg assistant";
-  thinkingDiv.textContent = "⏳ Thinking...";
-  chatLog.appendChild(thinkingDiv);
-
-  let reply = await sendToAI(msg);
-  thinkingDiv.textContent = reply;
-
-  chatLog.scrollTop = chatLog.scrollHeight;
-};
 
 
 
