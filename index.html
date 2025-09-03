@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Diary</title>
+
+  <!-- PWA bits -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#111111">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>📝 AI Diary</h1>
+    <nav>
+      <button class="tab-btn" data-tab="diary">Diary</button>
+      <button class="tab-btn" data-tab="chat">AI Chat</button>
+      <button class="tab-btn" data-tab="settings">Settings</button>
+    </nav>
+  </header>
+
+  <!-- Diary tab -->
+  <section id="diary" class="tab active">
+    <h2>New entry</h2>
+    <label>Title
+      <input id="entryTitle" placeholder="Today I..." />
+    </label>
+
+    <label>Photo (optional)
+      <input id="entryPhoto" type="file" accept="image/*" />
+    </label>
+
+    <label>Notes
+      <textarea id="entryText" rows="6" placeholder="Write your thoughts here..."></textarea>
+    </label>
+
+    <button id="saveEntry">Save entry</button>
+
+    <h2>Your entries</h2>
+    <input id="search" placeholder="Search..." />
+    <ul id="entriesList"></ul>
+  </section>
+
+  <!-- Chat tab -->
+  <section id="chat" class="tab">
+    <div id="chatLog" class="chat-log"></div>
+    <div class="chat-input">
+      <input id="chatMsg" placeholder="Ask your diary assistant..." />
+      <button id="sendMsg">Send</button>
+    </div>
+    <label class="tiny">
+      <input type="checkbox" id="saveChat" checked>
+      Save chat locally
+    </label>
+  </section>
+
+  <!-- Settings tab -->
+  <section id="settings" class="tab">
+    <h2>Settings</h2>
+    <label>OpenAI API Key
+      <input id="apiKey" type="password" placeholder="sk-..." />
+    </label>
+
+    <label>Model
+      <select id="model">
+        <option value="gpt-4o-mini">gpt-4o-mini (cheap & smart)</option>
+        <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+      </select>
+    </label>
+
+    <button id="saveSettings">Save settings</button>
+    <button id="clearAll" class="danger">Erase all local data</button>
+
+    <h3>Backup</h3>
+    <button id="exportData">Export to file</button>
+    <input id="importFile" type="file" accept="application/json">
+    <button id="importData">Import</button>
+
+    <p class="tiny">All entries, photos, and chats are stored on this iPad in your browser.
+      The app only contacts OpenAI when you send a message in AI Chat.</p>
+  </section>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    }
+  </script>
+</body>
+</html>
