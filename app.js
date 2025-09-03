@@ -1,145 +1,153 @@
-// Tabs
-const tabs = document.querySelectorAll('.tab-btn');
-const sections = document.querySelectorAll('.tab');
-tabs.forEach(btn=>{
-  btn.onclick=()=>{
-    sections.forEach(s=>s.classList.remove('active'));
-    document.getElementById(btn.dataset.tab).classList.add('active');
+// =============================
+// AI Diary App - Hugging Face Version
+// =============================
+
+let entries = JSON.parse(localStorage.getItem("entries") || "[]");
+let settings = JSON.parse(localStorage.getItem("settings") || "{}");
+
+// Save settings
+document.getElementById("saveSettings").onclick = () => {
+  settings.apiKey = document.getElementById("apiKey").value;
+  settings.model = document.getElementById("model").value;
+  localStorage.setItem("settings", JSON.stringify(settings));
+  alert("✅ Settings saved!");
+};
+
+// Load settings into inputs
+if (settings.apiKey) document.getElementById("apiKey").value = settings.apiKey;
+if (settings.model) document.getElementById("model").value = settings.model;
+
+// Tab navigation
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.tab).classList.add("active");
   };
 });
 
-// Save & load entries
-const saveEntryBtn = document.getElementById('saveEntry');
-const entriesList = document.getElementById('entriesList');
-let entries = JSON.parse(localStorage.getItem('entries')||'[]');
+// Save diary entry
+document.getElementById("saveEntry").onclick = () => {
+  let title = document.getElementById("entryTitle").value;
+  let text = document.getElementById("entryText").value;
+  let photoFile = document.getElementById("entryPhoto").files[0];
+  let date = new Date().toLocaleString();
+  let entry = { title, text, date, photo: null };
 
-function renderEntries(list=entries){
-  entriesList.innerHTML='';
-  list.forEach((e,i)=>{
-    const li=document.createElement('li');
-    li.className='card';
-    li.innerHTML=`
-      <div class="row"><strong>${e.title||'Untitled'}</strong>
-      <span class="ts">${new Date(e.date).toLocaleString()}</span></div>
-      ${e.photo?`<img class="thumb" src="${e.photo}">`:''}
-      <div>${e.text}</div>
-    `;
-    entriesList.appendChild(li);
+  if (photoFile) {
+    let reader = new FileReader();
+    reader.onload = () => {
+      entry.photo = reader.result;
+      entries.push(entry);
+      localStorage.setItem("entries", JSON.stringify(entries));
+      alert("✅ Entry saved!");
+    };
+    reader.readAsDataURL(photoFile);
+  } else {
+    entries.push(entry);
+    localStorage.setItem("entries", JSON.stringify(entries));
+    alert("✅ Entry saved!");
+  }
+};
+
+// Load entries
+function loadEntries() {
+  let list = document.getElementById("entriesList");
+  list.innerHTML = "";
+  entries.forEach((e, i) => {
+    let li = document.createElement("li");
+    li.className = "card";
+    li.innerHTML = `<b>${e.title}</b><br>${e.text}<br><span class="ts">${e.date}</span>`;
+    if (e.photo) {
+      li.innerHTML += `<br><img src="${e.photo}" class="thumb">`;
+    }
+    list.appendChild(li);
   });
 }
-renderEntries();
+loadEntries();
 
-saveEntryBtn.onclick=()=>{
-  const title=document.getElementById('entryTitle').value;
-  const text=document.getElementById('entryText').value;
-  const photoInput=document.getElementById('entryPhoto');
-  let photo=null;
-  if(photoInput.files[0]){
-    const reader=new FileReader();
-    reader.onload=()=>{
-      photo=reader.result;
-      addEntry(title,text,photo);
-    };
-    reader.readAsDataURL(photoInput.files[0]);
-  } else {
-    addEntry(title,text,null);
-  }
-};
-
-function addEntry(title,text,photo){
-  const entry={title,text,photo,date:Date.now()};
-  entries.unshift(entry);
-  localStorage.setItem('entries',JSON.stringify(entries));
-  renderEntries();
-  document.getElementById('entryTitle').value='';
-  document.getElementById('entryText').value='';
-  document.getElementById('entryPhoto').value='';
-}
-
-// Search
-document.getElementById('search').oninput=(e)=>{
-  const q=e.target.value.toLowerCase();
-  renderEntries(entries.filter(en=>
-    en.title.toLowerCase().includes(q)||en.text.toLowerCase().includes(q)
-  ));
-};
-
-// AI Chat (Hugging Face)
-const chatLog=document.getElementById('chatLog');
-const chatMsg=document.getElementById('chatMsg');
-document.getElementById('sendMsg').onclick=sendChat;
-
-function appendMsg(role,text){
-  const div=document.createElement('div');
-  div.className=`msg ${role}`;
-  div.innerHTML=`<div>${text}</div>`;
-  chatLog.appendChild(div);
-  chatLog.scrollTop=chatLog.scrollHeight;
-}
-
-async function sendChat(){
-  const msg=chatMsg.value.trim();
-  if(!msg) return;
-  appendMsg('user',msg);
-  chatMsg.value='';
-
-  const key=localStorage.getItem('hf_apiKey');
-  const model=localStorage.getItem('hf_model')||'meta-llama/Llama-2-7b-chat-hf';
-  if(!key){ appendMsg('assistant','⚠️ Please set your Hugging Face API key in Settings'); return; }
-
-  appendMsg('assistant','⏳ Thinking...');
-  try{
-    const r=await fetch(`https://api-inference.huggingface.co/models/${model}`,{
-      method:"POST",
-      headers:{ "Content-Type":"application/json","Authorization":"Bearer "+key },
-      body:JSON.stringify({inputs: msg})
+// Search entries
+document.getElementById("search").oninput = (e) => {
+  let q = e.target.value.toLowerCase();
+  let list = document.getElementById("entriesList");
+  list.innerHTML = "";
+  entries.filter(e => e.title.toLowerCase().includes(q) || e.text.toLowerCase().includes(q))
+    .forEach(e => {
+      let li = document.createElement("li");
+      li.className = "card";
+      li.innerHTML = `<b>${e.title}</b><br>${e.text}<br><span class="ts">${e.date}</span>`;
+      if (e.photo) {
+        li.innerHTML += `<br><img src="${e.photo}" class="thumb">`;
+      }
+      list.appendChild(li);
     });
-    const j=await r.json();
+};
 
-    if (j.error) {
-      chatLog.lastChild.innerHTML = `<div>⚠️ API Error: ${j.error}</div>`;
-    } else {
-      const reply = j[0]?.generated_text || "(no reply)";
-      chatLog.lastChild.innerHTML = `<div>${reply}</div>`;
+// =============================
+// Hugging Face Chat
+// =============================
+async function sendToAI(message) {
+  if (!settings.apiKey || !settings.model) {
+    return "⚠️ Please set API key and model in Settings.";
+  }
+
+  try {
+    let response = await fetch(`https://api-inference.huggingface.co/models/${settings.model}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${settings.apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ inputs: message })
+    });
+
+    if (!response.ok) {
+      return `❌ API Error: ${response.statusText}`;
     }
-  }catch(e){
-    chatLog.lastChild.innerHTML=`<div>⚠️ Error: ${e}</div>`;
+
+    let data = await response.json();
+    console.log("HF response:", data);
+
+    // Some models return [{ generated_text: "..." }]
+    if (Array.isArray(data) && data[0]?.generated_text) {
+      return data[0].generated_text;
+    }
+
+    // Some chat models return { generated_text: "..." }
+    if (data.generated_text) {
+      return data.generated_text;
+    }
+
+    return "🤖 No reply received from model.";
+  } catch (err) {
+    return "❌ Error: " + err.message;
   }
 }
 
-// Settings
-document.getElementById('saveSettings').onclick=()=>{
-  const key=document.getElementById('apiKey').value;
-  const model=document.getElementById('model').value;
-  if(key) localStorage.setItem('hf_apiKey',key);
-  localStorage.setItem('hf_model',model);
-  alert('✅ Settings saved');
-};
+// Handle chat
+document.getElementById("sendMsg").onclick = async () => {
+  let msg = document.getElementById("chatMsg").value;
+  if (!msg) return;
 
-// Clear all
-document.getElementById('clearAll').onclick=()=>{
-  if(confirm('Erase everything?')){
-    localStorage.clear(); entries=[]; renderEntries(); chatLog.innerHTML='';
-  }
-};
+  let chatLog = document.getElementById("chatLog");
 
-// Export/import
-document.getElementById('exportData').onclick=()=>{
-  const blob=new Blob([JSON.stringify({entries},null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download='ai-diary.json'; a.click();
-};
-document.getElementById('importData').onclick=()=>{
-  const f=document.getElementById('importFile').files[0];
-  if(!f) return;
-  const reader=new FileReader();
-  reader.onload=()=>{
-    try{ const j=JSON.parse(reader.result);
-      if(j.entries){ entries=j.entries; localStorage.setItem('entries',JSON.stringify(entries)); renderEntries(); }
-    }catch(e){ alert('Bad file'); }
-  };
-  reader.readAsText(f);
+  let userDiv = document.createElement("div");
+  userDiv.className = "msg user";
+  userDiv.textContent = msg;
+  chatLog.appendChild(userDiv);
+
+  document.getElementById("chatMsg").value = "";
+
+  let thinkingDiv = document.createElement("div");
+  thinkingDiv.className = "msg assistant";
+  thinkingDiv.textContent = "⏳ Thinking...";
+  chatLog.appendChild(thinkingDiv);
+
+  let reply = await sendToAI(msg);
+  thinkingDiv.textContent = reply;
+
+  chatLog.scrollTop = chatLog.scrollHeight;
 };
 
 
