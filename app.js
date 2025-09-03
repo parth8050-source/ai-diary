@@ -1,5 +1,5 @@
 // =============================
-// AI Diary App - Hugging Face Version
+// AI Diary App - Hugging Face Version (with timeout + error handling)
 // =============================
 
 let entries = JSON.parse(localStorage.getItem("entries") || "[]");
@@ -85,7 +85,7 @@ document.getElementById("search").oninput = (e) => {
 };
 
 // =============================
-// Hugging Face Chat
+// Hugging Face Chat with Timeout
 // =============================
 async function sendToAI(message) {
   if (!settings.apiKey || !settings.model) {
@@ -93,34 +93,42 @@ async function sendToAI(message) {
   }
 
   try {
+    // Timeout setup (20s)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+
     let response = await fetch(`https://api-inference.huggingface.co/models/${settings.model}`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${settings.apiKey}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ inputs: message })
+      body: JSON.stringify({ inputs: message }),
+      signal: controller.signal
     });
 
+    clearTimeout(timeout);
+
     if (!response.ok) {
-      return `❌ API Error: ${response.statusText}`;
+      return `❌ API Error: ${response.status} ${response.statusText}`;
     }
 
     let data = await response.json();
     console.log("HF response:", data);
 
-    // Some models return [{ generated_text: "..." }]
+    // Handle different response formats
     if (Array.isArray(data) && data[0]?.generated_text) {
       return data[0].generated_text;
     }
-
-    // Some chat models return { generated_text: "..." }
     if (data.generated_text) {
       return data.generated_text;
     }
 
     return "🤖 No reply received from model.";
   } catch (err) {
+    if (err.name === "AbortError") {
+      return "⏳ Request timed out. Try a smaller or faster model (like HuggingFaceH4/zephyr-7b-beta).";
+    }
     return "❌ Error: " + err.message;
   }
 }
@@ -149,5 +157,6 @@ document.getElementById("sendMsg").onclick = async () => {
 
   chatLog.scrollTop = chatLog.scrollHeight;
 };
+
 
 
