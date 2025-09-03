@@ -94,7 +94,12 @@ async function sendChat(){
       body:JSON.stringify({model, messages:[{role:"user",content:msg}]})
     });
     const j=await r.json();
-    chatLog.lastChild.innerHTML=`<div>${j.choices[0].message.content}</div>`;
+
+    if (j.error) {
+      chatLog.lastChild.innerHTML = `<div>⚠️ API Error: ${j.error.message}</div>`;
+    } else {
+      chatLog.lastChild.innerHTML = `<div>${j.choices[0].message.content}</div>`;
+    }
   }catch(e){
     chatLog.lastChild.innerHTML=`<div>⚠️ Error: ${e}</div>`;
   }
